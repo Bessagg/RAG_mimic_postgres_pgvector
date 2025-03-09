@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import psycopg2
 from psycopg2 import sql
+import csv
 from io import StringIO
 
 # Load environment variables
@@ -42,43 +43,40 @@ def infer_sqlalchemy_type(series):
 def copy_to_postgres(file_path, table_name):
     """Use the COPY command to efficiently insert large data into PostgreSQL."""
     try:
-        # Read CSV into pandas DataFrame
-        df = pd.read_csv(file_path, encoding="utf-8", dtype=str)
-        df.columns = [col.lower() for col in df.columns]  # Ensure column names are lowercase
+        df = pd.read_csv(file_path, encoding="utf-8", dtype=str, low_memory=False)
+        df.columns = [col.lower() for col in df.columns]  # Ensure lowercase column names
 
-        # Convert DataFrame to CSV string (without header)
+        # Preprocess: Remove newlines inside text fields and handle NULL values correctly
+        df = df.apply(lambda col: col.str.replace("\n", " ", regex=False) if col.dtype == "object" else col)
+        df.replace({"NULL": None, "": None}, inplace=True)  # Convert "NULL" strings and empty values to None
+
+        # Convert DataFrame to CSV format (without header)
         csv_data = StringIO()
-        df.to_csv(csv_data, header=False, index=False, quotechar='"')
-        csv_data.seek(0)  # Go to the beginning of the StringIO buffer
+        df.to_csv(csv_data, header=False, index=False, quotechar='"', quoting=csv.QUOTE_MINIMAL, na_rep="")
+        csv_data.seek(0)  # Reset buffer position
 
-        # Connect to PostgreSQL using psycopg2
+        # Connect to PostgreSQL
         conn = psycopg2.connect(
-            host=PG_HOST,
-            port=PG_PORT,
-            user=PG_USER,
-            password=PG_PASSWORD,
-            dbname=PG_DB
+            host=PG_HOST, port=PG_PORT, user=PG_USER, password=PG_PASSWORD, dbname=PG_DB
         )
 
-        # Create a cursor
         with conn.cursor() as cursor:
-            # Perform COPY operation
+            # Use COPY for efficient bulk insert
             copy_sql = sql.SQL("""
-                COPY {} FROM stdin WITH CSV DELIMITER ',' QUOTE '"' ESCAPE AS '\\'
+                COPY {} FROM stdin WITH CSV DELIMITER ',' QUOTE '"' ESCAPE AS '\\' NULL ''
             """).format(sql.Identifier(table_name))
-            cursor.copy_expert(copy_sql, csv_data)
 
-        # Commit the transaction
+            cursor.copy_expert(copy_sql, csv_data)  # Execute COPY command
+
         conn.commit()
         print(f"✅ Successfully copied data into {table_name}")
 
     except Exception as e:
         print(f"❌ Error copying data into {table_name}: {str(e)}")
+
     finally:
-        # Close the connection
         if conn:
             conn.close()
-
 
 def create_table_if_not_exists(table_name, df):
     """Create a PostgreSQL table dynamically based on CSV structure."""
