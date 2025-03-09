@@ -37,46 +37,54 @@ def infer_sqlalchemy_type(series):
         return Text  # Default to TEXT to prevent truncation
 
 
+import csv
 
-
-
-def copy_to_postgres(file_path, table_name):
-    """Use the COPY command to efficiently insert large data into PostgreSQL."""
+def copy_to_postgres(file_path, table_name, chunksize=50000, commit_every=10):
+    """Use the COPY command to insert large data into PostgreSQL in batches."""
     try:
-        df = pd.read_csv(file_path, encoding="utf-8", dtype=str, low_memory=False)
-        df.columns = [col.lower() for col in df.columns]  # Ensure lowercase column names
-
-        # Preprocess: Remove newlines inside text fields and handle NULL values correctly
-        df = df.apply(lambda col: col.str.replace("\n", " ", regex=False) if col.dtype == "object" else col)
-        df.replace({"NULL": None, "": None}, inplace=True)  # Convert "NULL" strings and empty values to None
-
-        # Convert DataFrame to CSV format (without header)
-        csv_data = StringIO()
-        df.to_csv(csv_data, header=False, index=False, quotechar='"', quoting=csv.QUOTE_MINIMAL, na_rep="")
-        csv_data.seek(0)  # Reset buffer position
-
-        # Connect to PostgreSQL
         conn = psycopg2.connect(
             host=PG_HOST, port=PG_PORT, user=PG_USER, password=PG_PASSWORD, dbname=PG_DB
         )
+        cursor = conn.cursor()
+        chunk_count = 0  # Track how many chunks processed
 
-        with conn.cursor() as cursor:
-            # Use COPY for efficient bulk insert
-            copy_sql = sql.SQL("""
-                COPY {} FROM stdin WITH CSV DELIMITER ',' QUOTE '"' ESCAPE AS '\\' NULL ''
-            """).format(sql.Identifier(table_name))
+        # Open CSV with the right quoting and escape settings
+        for chunk in pd.read_csv(file_path, encoding="utf-8", dtype=str, chunksize=chunksize, on_bad_lines='skip',
+                                 quoting=csv.QUOTE_MINIMAL, escapechar='\\'):
+            chunk.columns = [col.lower() for col in chunk.columns]
 
-            cursor.copy_expert(copy_sql, csv_data)  # Execute COPY command
+            # Preprocess: Replace newlines, empty strings -> NULL
+            chunk = chunk.apply(lambda col: col.str.replace("\n", " ", regex=False) if col.dtype == "object" else col)
+            chunk.replace({"NULL": None, "": None}, inplace=True)
 
+            # Convert chunk to CSV format
+            csv_data = StringIO()
+            chunk.to_csv(csv_data, header=False, index=False, quotechar='"', quoting=csv.QUOTE_MINIMAL, na_rep="")
+            csv_data.seek(0)
+
+            # COPY command
+            copy_sql = sql.SQL("COPY {} FROM stdin WITH CSV DELIMITER ',' QUOTE '\"' ESCAPE '\\' NULL ''").format(sql.Identifier(table_name))
+            cursor.copy_expert(copy_sql, csv_data)
+
+            chunk_count += 1
+
+            # Commit every 'commit_every' chunks to free memory
+            if chunk_count % commit_every == 0:
+                conn.commit()
+                print(f"✅ Committed {chunk_count} chunks to {table_name}. Freeing memory...")
+
+        # Final commit after loop ends
         conn.commit()
-        print(f"✅ Successfully copied data into {table_name}")
+        print(f"✅ Successfully copied all data into {table_name}")
 
     except Exception as e:
         print(f"❌ Error copying data into {table_name}: {str(e)}")
 
     finally:
         if conn:
+            cursor.close()
             conn.close()
+
 
 def create_table_if_not_exists(table_name, df):
     """Create a PostgreSQL table dynamically based on CSV structure."""
