@@ -15,7 +15,10 @@ from datetime import datetime
 import pandas as pd
 from config.settings import get_settings
 from openai import OpenAI
+from tqdm import tqdm
 from timescale_vector import client
+from sqlalchemy import inspect
+
 # Load environment variables
 load_dotenv()
 
@@ -31,13 +34,34 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
 # Create SQLAlchemy engine
-engine = create_engine(f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DB}")
-
+engine = create_engine(
+    f"postgresql+psycopg2://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DB}",
+    connect_args={"connect_timeout": 60}  # Set the timeout to 10 seconds (adjust as needed)
+)
 # Define the dictionary mapping tables to features and ids
 table_feature_map = {
-    'discharge': {'id': 'subject_id', 'feature': 'text'},
-    'radiology': {'id': 'subject_id', 'feature': 'text'}
+    'discharge': {'id': 'note_id', 'feature': 'text'},
+    'radiology': {'id': 'note_id', 'feature': 'text'}
 }
+
+
+def print_tables_and_columns(engine):
+    # Create an inspector to access metadata
+    inspector = inspect(engine)
+
+    # Get all table names from the database
+    tables = inspector.get_table_names()
+
+    # Print the columns of each table
+    for table_name in tables:
+        print(f"Table: {table_name}")
+        columns = inspector.get_columns(table_name)
+        for column in columns:
+            print(f"  Column: {column['name']} - {column['type']}")
+        print("\n" + "="*50 + "\n")
+
+# Example usage
+print_tables_and_columns(engine)
 
 # Ensure the 'vector' type exists in the database
 def ensure_vector_type_exists(engine):
@@ -288,7 +312,7 @@ def fetch_rows_without_embeddings(engine, table_name, id_column, feature):
             FROM {table_name}
             WHERE text_embedding IS NULL;
         """))
-        return result.fetchall()
+    return result.fetchall()
 
 # Update rows with embeddings
 def update_row_with_embedding(engine, table_name, id_column, row_id, embedding):
@@ -311,10 +335,9 @@ def main():
     for table, config in table_feature_map.items():
         print(f"Processing table: {table}")
         rows = fetch_rows_without_embeddings(engine, table, config['id'], config['feature'])
-        for row in rows:
-            embedding = vector_store.get_embedding(row[config['feature']])
-            update_row_with_embedding(engine, table, config['id'], row[config['id']], embedding)
-            print(f"Inserted embedding for {config['id']} = {row[config['id']]} in {table}")
+        for row in tqdm(rows, desc=f"Processing {table}", unit="row"):
+            embedding = vector_store.get_embedding(row[1])  # Access the feature using index 1
+            update_row_with_embedding(engine, table, config['id'], row[0], embedding)  # Access the id using index 0
 
     session.close()
 
