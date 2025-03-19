@@ -19,6 +19,8 @@ from tqdm import tqdm
 from timescale_vector import client
 from sqlalchemy import inspect
 
+# OpenAI embedding https://platform.openai.com/docs/guides/embeddings
+
 # Load environment variables
 load_dotenv()
 

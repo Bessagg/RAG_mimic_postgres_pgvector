@@ -15,6 +15,18 @@ This repository contains example notebooks demonstrating how to use Langchain wi
 
 ---
 
+## Postgres + pgvector + AI + VectorScale
+
+To set up PostgreSQL with AI capabilities, follow these steps:
+
+1. Install the required extensions by running the SQL commands provided in `database/vector_and_ai_extensions_install.sql`. These extensions include:
+   - **pgvector**: Enables vector similarity search in PostgreSQL, essential for AI-driven applications.
+   - **ai and vectorscale**: Enhance PostgreSQL's ability to handle AI workloads efficiently.
+
+2. Refer to this [tutorial on YouTube](https://www.youtube.com/watch?v=Ua6LDIOVN1s&list=PLsceB9ac9MHR7IL2kSiHN8NUCmXoEEAf8) for a great guide of working with these extensions.
+
+By integrating `pgvector` and other tools, this project enables efficient storage and querying of vector embeddings, making it suitable for AI and machine learning workflows.
+
 ### Running the Examples
 
 1. Clone the repository.
