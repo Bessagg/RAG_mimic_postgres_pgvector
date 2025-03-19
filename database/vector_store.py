@@ -42,7 +42,7 @@ engine = create_engine(
 )
 # Define the dictionary mapping tables to features and ids
 table_feature_map = {
-    'discharge': {'id': 'note_id', 'feature': 'text'},
+    # 'discharge': {'id': 'note_id', 'feature': 'text'},
     'radiology': {'id': 'note_id', 'feature': 'text'}
 }
 
