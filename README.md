@@ -1,9 +1,9 @@
-# Setup
+## Setup
 
 Define `OpenAI` and `Langchain` API keys in a file named `.env`.  
 The required parameters are shown in the example file [`.env.example`](./.env.example).
 
-# Langchain + OpenAI Example
+## Langchain + OpenAI Example
 
 This repository contains example notebooks demonstrating how to use Langchain with OpenAI.
 
@@ -37,14 +37,14 @@ By integrating `pgvector` and other tools, this project enables efficient storag
 
 ### Repository
 
-[https://github.com/Bessagg/Langchain_examples](https://github.com/Bessagg/Langchain_examples)
+[https://github.com/Bessagg/Langchain_examples](https://github.com/Bessagg//RAG_mimic_postgres_pgvector)
 
 ## Data Source
+
 This project uses data from **EHR-CON: Consistency of Notes** (version 1.0.0), a small example database provided by PhysioNet. This dataset was selected due to its manageable size, making it suitable for development and testing purposes before scaling to larger datasets like MIMIC-IV.
 Dataset link: [https://www.physionet.org/content/ehrcon-consistency-of-notes/1.0.0/](https://www.physionet.org/content/ehrcon-consistency-of-notes/1.0.0/)
 
-
 ## Database Reference
-This project utilizes data from **MIMIC-IV-Note**, a publicly available dataset of deidentified clinical notes:
-Johnson, A., Pollard, T., Horng, S., Celi, L. A., & Mark, R. (2023). MIMIC-IV-Note: Deidentified free-text clinical notes (version 2.2). PhysioNet. https://doi.org/10.13026/1n74-ne17
 
+This project utilizes data from **MIMIC-IV-Note**, a publicly available dataset of deidentified clinical notes:
+Johnson, A., Pollard, T., Horng, S., Celi, L. A., & Mark, R. (2023). MIMIC-IV-Note: Deidentified free-text clinical notes (version 2.2). PhysioNet. <https://doi.org/10.13026/1n74-ne17>
