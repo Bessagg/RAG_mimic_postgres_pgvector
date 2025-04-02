@@ -116,11 +116,11 @@ class VectorStore:
         return embedding
 
     def create_tables(self) -> None:
-        """Create the necessary tablesin the database"""
+        """Create the necessary tables in the database"""
         self.vec_client.create_tables()
 
     def create_index(self) -> None:
-        """Create the StreamingDiskANN index to spseed up similarity search"""
+        """Create the StreamingDiskANN index to speed up similarity search"""
         self.vec_client.create_embedding_index(client.DiskAnnIndex())
 
     def drop_index(self) -> None:
